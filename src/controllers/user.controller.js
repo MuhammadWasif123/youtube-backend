@@ -7,8 +7,9 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const generateAccessAndRefreshToken=async(userId)=>{
     try {
-        const user = User.findById(userId);
-        const accessToken= user.generateAccessToken();
+        const user = await User.findById(userId);
+        // console.log("User Found in access token method",user);
+        const accessToken=user.generateAccessToken();
         const refreshToken=user.generateRefreshToken(); 
         user.refreshToken = refreshToken;
         await user.save({validateBeforeSave:false});
@@ -16,14 +17,16 @@ const generateAccessAndRefreshToken=async(userId)=>{
         return {accessToken,refreshToken}
         
     } catch (error) {
+        // console.log(error);
         throw new ApiError(500,"Something went wrong while generating access token");
+        
     }
 }
 
 const registerUser = asyncHandler(async (req,res)=> {
     const {fullName,username,email,password} = req.body
     // console.log("email",email);
-    console.log(req.body)
+    // console.log(req.body)
 
     if(
         [fullName,email,username,password].some((field)=>
@@ -41,7 +44,7 @@ const registerUser = asyncHandler(async (req,res)=> {
         throw new ApiError(409,"User with email and username already exist")
     }
 
-    console.log("Checking required files for testing", req.files)
+    // console.log("Checking required files for testing", req.files)
     const avatarLocalPath = req.files?.avatar[0]?.path;
     // const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
 
@@ -75,6 +78,7 @@ const registerUser = asyncHandler(async (req,res)=> {
         "-password -refreshToken"
     );
 
+    // console.log("User found by ID creating User",createdUser)
     if(!createdUser){
         throw new ApiError(500,"Something went wrong while registering the user");
     }
@@ -92,8 +96,9 @@ const loginUser = asyncHandler(async (req,res)=>{
     // generate access and refresh token
 
     const {email,username,password} = req.body
+    // console.log(email,password)
 
-    if(!username || !email){
+    if(!username && !email){
         throw new ApiError(400,"username or email is required")
     }   
 
@@ -101,6 +106,7 @@ const loginUser = asyncHandler(async (req,res)=>{
         $or:[{username},{email}]
     })
 
+    // console.log("User Found from DB",user)
     if(!user){
         throw new ApiError(404,"User does not exist")
     }
@@ -111,9 +117,11 @@ const loginUser = asyncHandler(async (req,res)=>{
         throw new ApiError(401,"Invalid user credentials")
     }
 
+    // console.log("Checking the user id",user._id);
     const {accessToken,refreshToken} = await generateAccessAndRefreshToken(user._id)
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    // console.log("Logged In User",loggedInUser);
 
     const options = {
         httpOnly:true,
